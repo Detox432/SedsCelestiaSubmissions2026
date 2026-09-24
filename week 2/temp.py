@@ -31,9 +31,9 @@ class Material(IntEnum):
     EMPTY = 0
     SAND = 1
     WATER = 2
+    STONE = 3
 
     # BONUS: add more materials here, e.g.
-    # WALL = 3   (immovable — never update it)
     # FIRE = 4   (lives a few ticks, then becomes EMPTY)
     # SMOKE = 5  (rises instead of falling, then fades)
 
@@ -43,6 +43,7 @@ PALETTE = {
     Material.EMPTY: (0, 0, 0),
     Material.SAND: (194, 178, 128),
     Material.WATER: (52, 120, 235),
+    Material.STONE: (118, 118, 126),
 }
 # Turned into a NumPy array so that looking up a cell's colour is a single
 # fast indexing operation: COLORS[grid] gives the RGB value of every cell.
@@ -126,9 +127,75 @@ class SandSim:
         Hint: if you write straight into the grid you'll re-process cells
         that already moved. Copy the grid before the loop, read from the
         copy, and write the result into the live grid (or vice versa).
-        """
-        raise NotImplementedError("implement the physics, then delete this line")
+        """ 
+        prev = self._types.copy()
 
+        for row in range(self.height - 2, -1, -1):
+            for column in _rng.permutation(self.width):
+                if prev[row, column] == 1:
+
+                    diagonal_left = column - 1 >= 0 and self._types[row+1, column-1] == 0
+                    diagonal_right = column + 1 < self.width and self._types[row+1, column+1] == 0
+
+                    if self._types[row + 1, column] == 0:
+                        self._types[row + 1, column] = 1
+                        self._types[row, column] = 0
+
+                    elif diagonal_left and diagonal_right:
+                        coin_flip = _rng.integers(0,2)
+                        if coin_flip == 0:
+                            self._types[row+1,column+1] = 1
+                            self._types[row,column] = 0
+                        else:
+                            self._types[row+1,column-1] = 1
+                            self._types[row,column] = 0
+                    else:
+                        if diagonal_right:
+                            self._types[row+1,column+1] = 1
+                            self._types[row,column] = 0
+                        elif diagonal_left:
+                            self._types[row+1,column-1] = 1
+                            self._types[row,column] = 0
+                elif prev[row, column] == 2:
+
+                    diagonal_left = column - 1 >= 0 and self._types[row+1, column-1] == 0
+                    diagonal_right = column + 1 < self.width and self._types[row+1, column+1] == 0
+                    side_left = column - 1 >= 0 and self._types[row, column-1] == 0
+                    side_right = column + 1 < self.width and self._types[row, column+1] == 0
+
+                    if self._types[row + 1, column] == 0:
+                        self._types[row + 1, column] = 2
+                        self._types[row, column] = 0
+
+                    elif diagonal_left and diagonal_right:
+                        coin_flip = _rng.integers(0,2)
+                        if coin_flip == 0:
+                            self._types[row+1,column+1] = 2
+                            self._types[row,column] = 0
+                        else:
+                            self._types[row+1,column-1] = 2
+                            self._types[row,column] = 0
+                    else:
+                        if diagonal_right:
+                            self._types[row+1,column+1] = 2
+                            self._types[row,column] = 0
+                        elif diagonal_left:
+                            self._types[row+1,column-1] = 2
+                            self._types[row,column] = 0
+                        elif side_left and side_right:
+                            coin_flip = _rng.integers(0,2)
+                            if coin_flip == 0:
+                                self._types[row,column+1] = 2
+                                self._types[row,column] = 0
+                            else:
+                                self._types[row,column-1] = 2
+                                self._types[row,column] = 0
+                        elif side_right:
+                            self._types[row,column+1] = 2
+                            self._types[row,column] = 0
+                        elif side_left:
+                            self._types[row,column-1] = 2
+                            self._types[row,column] = 0
     # ------------------------------------------------------------------ #
     # Rendering (boilerplate — nothing to do here)
     # ------------------------------------------------------------------ #
@@ -154,7 +221,7 @@ def main() -> None:
     """Setup + event loop. Boilerplate — nothing to do here."""
     pygame.init()
     screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
-    pygame.display.set_caption("Falling Sand — 1 sand, 2 water, 0 erase, [ ] brush, C clear")
+    pygame.display.set_caption("Falling Sand — 1 sand, 2 water, 3 stone, 0 erase, [ ] brush, C clear")
     clock = pygame.time.Clock()
 
     sim = SandSim(800 // 4, 600 // 4)
@@ -172,6 +239,8 @@ def main() -> None:
                     sim.brush = Material.SAND
                 elif k == pygame.K_2:
                     sim.brush = Material.WATER
+                elif k == pygame.K_3:
+                    sim.brush = Material.STONE
                 elif k in (pygame.K_0, pygame.K_e):
                     sim.brush = Material.EMPTY
                 elif k == pygame.K_LEFTBRACKET:
